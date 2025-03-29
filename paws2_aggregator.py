@@ -269,6 +269,9 @@ class JMatricesFeet:
 class Paws2DataAggregator(Node):
 
     def __init__(self):
+        super().__init__('PAWS_data_collector')
+        self.get_logger().info("Initializing Paws2DataAggregator...")
+
         # Stored data
         self.quaternion_data: list[ImuQuaternion] = []
         self.angular_velocity_data: list[ImuAngularVelocity] = []
@@ -277,23 +280,34 @@ class Paws2DataAggregator(Node):
         self.foot_positions: list[FootSetPositions] = []
         self.j_matrices_feet: list[JMatricesFeet] = []
 
+        self.subscribe()
+
+    @property
+    def logger(self):
+        """Logger property."""
+        return self.get_logger()
+
     def subscribe(self, name="data_aggregator"):
+        """Subscribe to the topics."""
+        self.logger.info("Connecring with pybullet...")
         physicsClient = p.connect(p.SHARED_MEMORY)
         p.setAdditionalSearchPath(pybullet_data.getDataPath())
 
+        self.logger.info("Creating subscriptions...")
         # Subscriptions
-        self.imu_data_sub = self.node.create_subscription(
+        self.imu_data_sub = self.create_subscription(
             ImuMsg, IMU_TOPIC, self.imu_callback, 10)
-        self.joint_pos_sub = self.node.create_subscription(
+        self.joint_pos_sub = self.create_subscription(
             JointStateMsg, '/joint_states', self.joint_state_callback, 10)
-        self.foot_pos_sub = self.node.create_subscription(
+        self.foot_pos_sub = self.create_subscription(
             FootPositionsMsg, '/foot_positions', self.foot_position_callback, 10)
-        self.J_matrix_sub = self.node.create_subscription(
+        self.J_matrix_sub = self.create_subscription(
             JacobianMatrixMsg, '/j_matrix', self.j_matrix_callback, 10)
+        self.logger.info("Subscriptions created.")
         
 
     def timer_callback(self):
-        self.get_logger().info("Timer triggered, processing IMU data...")
+        self.logger.info("Timer triggered, processing IMU data...")
         self.process_imu_data()
 
         
@@ -314,6 +328,7 @@ class Paws2DataAggregator(Node):
             FootSetPositions.iterate(self.foot_positions),
             JMatricesFeet.iterate(self.j_matrices_feet),
         ):
+            self.logger.info(f"Yielding entry: {entry}")
             yield tuple(entry)
 
 #region   CALLBACKS
